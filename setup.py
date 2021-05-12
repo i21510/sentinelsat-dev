@@ -11,9 +11,9 @@ with open("sentinelsat/__init__.py", encoding="utf-8") as f:
     version = re.search(r'__version__\s*=\s*"(\S+)"', f.read()).group(1)
 
 setup(
-    name="sentinelsat",
+    name="sentinelsat-dev",
     version=version,
-    description="Utility to search and download Copernicus Sentinel satellite images",
+    description="Internal release for temporary use",
     long_description=long_description,
     classifiers=[
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
@@ -26,9 +26,9 @@ setup(
         "Topic :: Utilities",
     ],
     keywords="copernicus, sentinel, esa, satellite, download, GIS",
-    author="Kersten Clauss",
-    author_email="sentinelsat@krstn.eu",
-    url="https://github.com/sentinelsat/sentinelsat",
+    author="Verisk 3DVI",
+    author_email="jsaezalonso@verisk.com",
+    url="https://github.com/i21510/sentinelsat-dev.git",
     license="GPLv3+",
     packages=find_packages(exclude=["ez_setup", "examples", "tests"]),
     include_package_data=True,
