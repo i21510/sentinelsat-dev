@@ -1,10 +1,11 @@
-__version__ = "0.14"
+__version__ = "1.0.1"
 
 # Import for backwards-compatibility
 from . import sentinel
 from .exceptions import (
     SentinelAPIError,
-    SentinelAPILTAError,
+    LTAError,
+    LTATriggered,
     ServerError,
     InvalidKeyError,
     QueryLengthError,

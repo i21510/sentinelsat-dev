@@ -16,7 +16,7 @@ import requests_mock
 from flaky import flaky
 
 from sentinelsat import SentinelAPI, make_path_filter
-from sentinelsat.exceptions import InvalidChecksumError, InvalidKeyError, SentinelAPILTAError
+from sentinelsat.exceptions import InvalidChecksumError, InvalidKeyError, LTAError, ServerError
 
 
 @pytest.mark.fast
@@ -53,39 +53,62 @@ def test_dhus_version(dhus_url, version):
 
 @pytest.mark.mock_api
 @pytest.mark.parametrize(
-    "http_status_code",
+    "http_status_code, expected_result, headers",
     [
         # Note: the HTTP status codes have slightly more specific meanings in the LTA API.
-        202,  # Accepted for retrieval - the product offline product will be retrieved from the LTA.
-        403,  # Forbidden - user has exceeded their offline product retrieval quota.
+        # OK - already online
+        (200, False, {}),
+        (206, False, {}),
+        # Accepted for retrieval - the product offline product will be retrieved from the LTA.
+        (202, True, {}),
+        # already online but concurrent downloads limit was exceeded
+        (
+            403,
+            False,
+            {
+                "cause-message": 'An exception occured while creating a stream: Maximum number of 4 concurrent flows achieved by the user "mock_user"'
+            },
+        ),
     ],
 )
-def test_trigger_lta_success(http_status_code):
+def test_trigger_lta_success(http_status_code, expected_result, headers):
     api = SentinelAPI("mock_user", "mock_password")
-    request_url = "https://apihub.copernicus.eu/apihub/odata/v1/Products('8df46c9e-a20c-43db-a19a-4240c2ed3b8b')/$value"
+    uuid = "8df46c9e-a20c-43db-a19a-4240c2ed3b8b"
 
     with requests_mock.mock() as rqst:
-        rqst.head(request_url, status_code=http_status_code)
-        assert api._trigger_offline_retrieval(request_url) == http_status_code
+        rqst.get(api._get_download_url(uuid), status_code=http_status_code, headers=headers)
+        assert api.trigger_offline_retrieval(uuid) is expected_result
 
 
 @pytest.mark.mock_api
 @pytest.mark.parametrize(
-    "http_status_code",
+    "http_status_code, exception, headers",
     [
         # Note: the HTTP status codes have slightly more specific meanings in the LTA API.
-        503,  # Service Unavailable - request refused since the service is busy handling other requests.
-        500,  # Internal Server Error - attempted to download a sub-element of an offline product.
+        # Forbidden - user has exceeded their offline product retrieval quota.
+        (
+            403,
+            LTAError,
+            {
+                "cause-message": "User 'mock_user' offline products retrieval quota exceeded (20 fetches max) trying to fetch product S1A_EW_GRDM_1SDV_20151121T100356_20151121T100429_008701_00C622_A0EC (143549851 bytes compressed)"
+            },
+        ),
+        # Service Unavailable - request refused since the service is busy handling other requests.
+        (503, LTAError, {}),
+        # Internal Server Error - attempted to download a sub-element of an offline product.
+        (500, ServerError, {}),
+        (555, ServerError, {}),
+        (333, ServerError, {}),
     ],
 )
-def test_trigger_lta_failed(http_status_code):
+def test_trigger_lta_failed(http_status_code, exception, headers):
     api = SentinelAPI("mock_user", "mock_password")
-    request_url = "https://apihub.copernicus.eu/apihub/odata/v1/Products('8df46c9e-a20c-43db-a19a-4240c2ed3b8b')/$value"
+    uuid = "8df46c9e-a20c-43db-a19a-4240c2ed3b8b"
 
     with requests_mock.mock() as rqst:
-        rqst.head(request_url, status_code=http_status_code)
-        with pytest.raises(SentinelAPILTAError):
-            api._trigger_offline_retrieval(request_url)
+        rqst.get(api._get_download_url(uuid), status_code=http_status_code, headers=headers)
+        with pytest.raises(exception):
+            api.trigger_offline_retrieval(uuid)
 
 
 @pytest.mark.vcr
@@ -320,14 +343,15 @@ def test_download_quicklook_invalid_id(api):
 @pytest.mark.vcr
 @pytest.mark.scihub
 def test_get_stream(api, tmpdir, smallest_online_products):
-    uuid = smallest_online_products[0]["id"]
-    filename = smallest_online_products[0]["title"]
+    product_info = smallest_online_products[0]
+    uuid = product_info["id"]
+    filename = product_info["title"]
     expected_path = tmpdir.join(filename + ".zip")
 
-    raw, product_info = api.get_stream(uuid)
+    response = api.get_stream(uuid)
     assert product_info["title"] == filename
     with open(expected_path, "wb") as f:
-        shutil.copyfileobj(raw, f)
+        shutil.copyfileobj(response.raw, f)
 
     assert product_info["size"] == expected_path.size()
     assert api._md5_compare(expected_path, product_info["md5"])
@@ -337,9 +361,9 @@ def test_get_stream(api, tmpdir, smallest_online_products):
 
 @pytest.mark.vcr
 @pytest.mark.scihub
-def test_download_product_nodes(products_api, tmpdir, smallest_online_products):
-    uuid = smallest_online_products[0]["id"]
-    product_dir = smallest_online_products[0]["title"] + ".SAFE"
+def test_download_product_nodes(products_api, tmpdir, node_test_products):
+    uuid = node_test_products[0]["id"]
+    product_dir = node_test_products[0]["title"] + ".SAFE"
     expected_path = tmpdir.join(product_dir)
 
     nodefilter = make_path_filter("*preview/*.kml")

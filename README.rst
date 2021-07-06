@@ -236,6 +236,14 @@ Options
      - TEXT
      - Glob pattern to filter files (within each product) to be excluded from the downloaded.
    * -  
+     - --timeout
+     - FLOAT
+     - How long to wait for a DataHub response (in seconds, default 60 sec).
+   * -
+     - --gnss
+     -
+     - Query orbit products form the GNSS end-point ("https://scihub.copernicus.eu/gnss").
+   * -  
      - --info
      -  
      - Display DHuS server information.
@@ -295,7 +303,7 @@ The full documentation is also published at http://sentinelsat.readthedocs.io/.
 Changelog
 =========
 
-See `CHANGELOG <CHANGELOG.rst>`_. You can also use GitHub's compare view to see the `changes in the main branch since last release <https://github.com/sentinelsat/sentinelsat/compare/v0.14...main>`_.
+See `CHANGELOG <CHANGELOG.rst>`_. You can also use GitHub's compare view to see the `changes in the main branch since last release <https://github.com/sentinelsat/sentinelsat/compare/v1.0.1...main>`_.
 
 Contributors
 ============

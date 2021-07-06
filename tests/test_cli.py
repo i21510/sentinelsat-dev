@@ -119,6 +119,22 @@ def netrc_from_environ(no_netrc, credentials):
 
 @pytest.mark.vcr
 @pytest.mark.scihub
+def test_cli_gnss(run_cli):
+    run_cli(
+        "--gnss",
+        "-s",
+        "20210201",
+        "-e",
+        "20210202",
+        "--producttype",
+        "AUX_POEORB",
+        "--query",
+        "platformserialidentifier=1B",
+    )
+
+
+@pytest.mark.vcr
+@pytest.mark.scihub
 def test_cli_geometry_alternatives(run_cli, geojson_string, wkt_string):
     run_cli("--geometry", geojson_string, "--end", "20200101", "--limit", "1")
     run_cli("--geometry", wkt_string, "--end", "20200101", "--limit", "1")
@@ -427,32 +443,6 @@ def test_name_search_empty(run_cli):
 
 @pytest.mark.vcr
 @pytest.mark.scihub
-def test_option_hierarchy(run_cli, geojson_path):
-    # expected hierarchy is producttype > instrument > platform from most to least specific
-    result = run_cli(
-        "--geometry",
-        geojson_path,
-        "--url",
-        "https://apihub.copernicus.eu/apihub/",
-        "-s",
-        "20161201",
-        "-e",
-        "20161202",
-        "--sentinel",
-        "1",
-        "--instrument",
-        "SAR-C SAR",
-        "--producttype",
-        "S2MSI1C",
-    )
-
-    # Check that all returned products are of type 'S2MSI1C'
-    assert len(result.products) > 0
-    assert all("Instrument: MSI, Satellite: Sentinel-2" in p for p in result.products)
-
-
-@pytest.mark.vcr
-@pytest.mark.scihub
 def test_footprints_cli(run_cli, tmpdir, geojson_path):
     result = run_cli(
         "--geometry",
@@ -555,7 +545,7 @@ def test_product_node_download_single(run_cli, api, tmpdir, smallest_online_prod
 @pytest.mark.vcr(allow_playback_repeats=True)
 @pytest.mark.scihub
 def test_product_node_download_single_with_filter(
-    run_cli, api, tmpdir, smallest_online_products, monkeypatch
+    run_cli, api, tmpdir, node_test_products, monkeypatch
 ):
     # Change default arguments for quicker test.
     # Also, vcrpy is not threadsafe, so only one worker is used.
@@ -564,7 +554,7 @@ def test_product_node_download_single_with_filter(
         partialmethod(SentinelAPI.download_all, max_attempts=2, n_concurrent_dl=1),
     )
 
-    product_id = smallest_online_products[0]["id"]
+    product_id = node_test_products[0]["id"]
     command = [
         "--uuid",
         product_id,

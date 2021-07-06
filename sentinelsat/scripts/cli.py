@@ -155,6 +155,12 @@ def validate_query_param(ctx, param, kwargs):
     """,
 )
 @click.option(
+    "--timeout",
+    type=float,
+    default=60,
+    help="How long to wait for a DataHub response (in seconds, default 60 sec).",
+)
+@click.option(
     "--debug",
     is_flag=True,
     help="Print debug log messages.",
@@ -170,6 +176,13 @@ def validate_query_param(ctx, param, kwargs):
     default=None,
     help="""Glob pattern to filter files (within each product) to be excluded
     from the downloaded.
+    """,
+)
+@click.option(
+    "--gnss",
+    is_flag=True,
+    help="""Use the "https://scihub.copernicus.eu/gnss" end-point
+    for orbit data query and download.
     """,
 )
 @click.option("--info", is_flag=True, is_eager=True, help="Displays the DHuS version used")
@@ -195,9 +208,11 @@ def cli(
     order_by,
     location,
     limit,
+    timeout,
     debug,
     include_pattern,
     exclude_pattern,
+    gnss,
     info,
 ):
     """Search for Sentinel products and, optionally, download all the results
@@ -215,7 +230,7 @@ def cli(
         _set_logger_handler("INFO")
 
     if info:
-        api = SentinelProductsAPI(None, None, url)
+        api = SentinelProductsAPI(None, None, url, timeout=timeout)
         ctx = click.get_current_context()
         click.echo("DHuS version: " + api.dhus_version)
         ctx.exit()
@@ -231,6 +246,11 @@ def cli(
     else:
         nodefilter = None
 
+    if gnss:
+        url = "https://scihub.copernicus.eu/gnss/"
+        user = "gnssguest"
+        password = "gnssguest"
+
     if user is None or password is None:
         try:
             user, password = requests.utils.get_netrc_auth(url)
@@ -243,13 +263,13 @@ def cli(
             "for environment variables and .netrc support."
         )
 
-    api = SentinelProductsAPI(user, password, url)
+    api = SentinelProductsAPI(user, password, url, timeout=timeout)
 
     search_kwargs = {}
-    if sentinel and not (producttype or instrument):
+    if sentinel:
         search_kwargs["platformname"] = "Sentinel-" + sentinel
 
-    if instrument and not producttype:
+    if instrument:
         search_kwargs["instrumentshortname"] = instrument
 
     if producttype:
