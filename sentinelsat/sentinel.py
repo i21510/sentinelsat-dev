@@ -12,6 +12,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict
 from urllib.parse import quote_plus, urljoin
+from urllib.util.retry import Retry
+from requests.adapters import HTTPAdapter
 
 import geojson
 import geomet.wkt
@@ -78,6 +80,14 @@ class SentinelAPI:
         timeout=60,
     ):
         self.session = requests.Session()
+
+        retries = Retry(total=4,
+                        backoff_factor=1,
+                        status_forcelist=[500, 502, 503, 504])
+
+        self.session.mount('http://', HTTPAdapter(max_retries=retries))
+        self.session.mount('https://', HTTPAdapter(max_retries=retries))
+
         if user and password:
             self.session.auth = (user, password)
         self.api_url = api_url if api_url.endswith("/") else api_url + "/"
