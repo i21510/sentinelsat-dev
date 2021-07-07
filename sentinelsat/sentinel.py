@@ -12,7 +12,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict
 from urllib.parse import quote_plus, urljoin
-from urllib.util.retry import Retry
+from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 
 import geojson
